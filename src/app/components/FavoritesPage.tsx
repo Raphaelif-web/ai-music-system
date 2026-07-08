@@ -1,21 +1,8 @@
-import { useMusicPlayer, Track } from "../context/MusicContext";
+import { useMusicPlayer } from "../context/MusicContext";
 import { TrackRow, TrackTableHeader } from "./ui/TrackRow";
 
-// Favorite tracks images from Figma
-import imgTrack1 from "@/assets/figma/48a6e9ae994c060da347e19294ad8e9f9fa5358c.png";
-import imgTrack2 from "@/assets/figma/51e24026833e73d23a99e5a06db5cc02e7cd5bf4.png";
-import imgTrack3 from "@/assets/figma/b6fa0d201f9ec64c5f0a983eee403861c850233c.png";
-
-const AUDIO_URL = "https://framerusercontent.com/assets/09hPgrhAGuCOXh9suukXzyi8k.mp3";
-
-const favoriteTracks: Track[] = [
-  { id: "f1", title: "Bob brown", artist: "@bobbrown", album: "Bob brown", duration: "5:47", image: imgTrack1, audioUrl: AUDIO_URL },
-  { id: "f2", title: "Marte de boa", artist: "@lucasmarteux", album: "Marte ataca", duration: "6:36", image: imgTrack2, audioUrl: AUDIO_URL },
-  { id: "f3", title: "Amo muito...", artist: "@thalesroberto", album: "Marte de boa", duration: "5:22", image: imgTrack3, audioUrl: AUDIO_URL },
-];
-
 export function FavoritesPage() {
-  const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
+  const { playTrack, currentTrack, isPlaying, favoriteTracks } = useMusicPlayer();
 
   return (
     <div className="w-full">
@@ -43,7 +30,6 @@ export function FavoritesPage() {
             minHeight: "200px",
           }}
         >
-          {/* Background pattern */}
           <div
             className="absolute inset-0 opacity-5"
             style={{
@@ -51,7 +37,6 @@ export function FavoritesPage() {
             }}
           />
 
-          {/* Heart icon */}
           <div className="relative flex flex-col items-center gap-4">
             <svg width="80" height="73" viewBox="0 0 24 21.096" fill="none">
               <path
@@ -68,37 +53,34 @@ export function FavoritesPage() {
                 Músicas favoritas
               </h2>
               <p className="text-[14px] leading-[1.5] mt-2" style={{ color: "#bababa" }}>
-                {favoriteTracks.length} músicas · 27 min
+                {favoriteTracks.length} {favoriteTracks.length === 1 ? "música" : "músicas"}
               </p>
             </div>
           </div>
-
-          {/* Dots menu - removed as per design spec */}
         </div>
 
         {/* ── Tracks Table ── */}
         <section>
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          {favoriteTracks.length === 0 ? (
+            <p className="text-center py-12 text-[#a19a9b]" style={{ fontSize: "14px" }}>
+              Nenhuma música favorita ainda. Toque no coração para salvar suas favoritas.
+            </p>
+          ) : (
+            <table className="w-full border-collapse">
               <TrackTableHeader />
               <tbody>
-                {favoriteTracks.map((track, index) => {
-                  const isCurrentTrack = currentTrack?.id === track.id;
-                  const isTrackPlaying = isCurrentTrack && isPlaying;
-
-                  return (
-                    <TrackRow
-                      key={track.id}
-                      track={track}
-                      index={index}
-                      isPlaying={isTrackPlaying}
-                      onClick={() => playTrack(track)}
-                    />
-                  );
-                })}
+                {favoriteTracks.map((track, index) => (
+                  <TrackRow
+                    key={track.id}
+                    track={track}
+                    index={index}
+                    isPlaying={currentTrack?.id === track.id && isPlaying}
+                    onClick={() => playTrack(track, favoriteTracks)}
+                  />
+                ))}
               </tbody>
             </table>
-          </div>
+          )}
         </section>
       </div>
     </div>

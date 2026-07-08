@@ -25,12 +25,14 @@ export function MiniPlayer() {
     isPlaying,
     togglePlay,
     progress,
-    isFavorite,
+    isTrackFavorite,
     toggleFavorite,
     openFullscreen,
   } = useMusicPlayer();
 
   if (!currentTrack) return null;
+
+  const trackIsFavorite = isTrackFavorite(currentTrack.id);
 
   const displayImage = currentTrack?.image || imgPlayerMusic;
   const displayTitle = currentTrack?.title || "";
@@ -103,8 +105,8 @@ export function MiniPlayer() {
         {/* Favorite button */}
         <div className="shrink-0">
           <FavoriteButton
-            isFavorite={isFavorite}
-            onToggle={toggleFavorite}
+            isFavorite={trackIsFavorite}
+            onToggle={() => toggleFavorite(currentTrack.id)}
             size="sm"
           />
         </div>

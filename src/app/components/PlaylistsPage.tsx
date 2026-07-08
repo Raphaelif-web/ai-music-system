@@ -1,49 +1,12 @@
-import { useState } from "react";
-import { useMusicPlayer, Track } from "../context/MusicContext";
+import { useEffect, useState } from "react";
+import { useMusicPlayer } from "../context/MusicContext";
+import { useAppData } from "@/context/AppDataContext";
 import { TrackRow, TrackTableHeader } from "./ui/TrackRow";
 import { CreatePlaylistModal } from "./CreatePlaylistModal";
-
-// Playlist card images from Figma
-import imgPlaylist1 from "@/assets/figma/a5fb4564c109688e9da55ace27c2a57ec585d299.png";
-import imgPlaylist2 from "@/assets/figma/7972b3bd4358bcce33ff27707690626714be9283.png";
-import imgPlaylist3 from "@/assets/figma/f256cdc56e3a87dafde6b39922b2b63d32b719af.png";
-
-// Recently played track images from Figma
-import imgTrack1 from "@/assets/figma/48a6e9ae994c060da347e19294ad8e9f9fa5358c.png";
-import imgTrack2 from "@/assets/figma/51e24026833e73d23a99e5a06db5cc02e7cd5bf4.png";
-import imgTrack3 from "@/assets/figma/b6fa0d201f9ec64c5f0a983eee403861c850233c.png";
-import imgTrack4 from "@/assets/figma/29b52570151c1055b78e8e5043802cd321b71944.png";
-import imgTrack5 from "@/assets/figma/718dc7fe8ba681a3ad6c3a7945ac9998226d79a9.png";
-import imgTrack6 from "@/assets/figma/065a523c405e679bd35be6ccc6f70c9e126f4630.png";
-import imgTrack7 from "@/assets/figma/f62715eb368a05e886636fc759986135921e464c.png";
-import imgTrack8 from "@/assets/figma/7a1a7f8b9a7226c2a844698d749a32cccada90ef.png";
-
-const AUDIO_URL = "https://framerusercontent.com/assets/09hPgrhAGuCOXh9suukXzyi8k.mp3";
-
-export interface Playlist {
-  id: string;
-  title: string;
-  trackCount: number;
-  duration: string;
-  image: string;
-}
-
-export const playlists: Playlist[] = [
-  { id: "p1", title: "Músicas retrô", trackCount: 7, duration: "27 min", image: imgPlaylist1 },
-  { id: "p2", title: "Bob brown", trackCount: 7, duration: "27 min", image: imgPlaylist2 },
-  { id: "p3", title: "Bob brown", trackCount: 7, duration: "27 min", image: imgPlaylist3 },
-];
-
-export const recentlyPlayed: Track[] = [
-  { id: "rp1", title: "Bob brown", artist: "@bobbrown", album: "Bob brown", duration: "5:47", image: imgTrack1, audioUrl: AUDIO_URL },
-  { id: "rp2", title: "Marte de boa", artist: "@lucasmarteux", album: "Marte ataca", duration: "6:36", image: imgTrack2, audioUrl: AUDIO_URL },
-  { id: "rp3", title: "Amo muito...", artist: "@thalesroberto", album: "Marte de boa", duration: "5:22", image: imgTrack3, audioUrl: AUDIO_URL },
-  { id: "rp4", title: "Digital Dreams", artist: "@dreammaker", album: "Future Sounds", duration: "4:15", image: imgTrack4, audioUrl: AUDIO_URL },
-  { id: "rp5", title: "Neon Pulse", artist: "@neonbeats", album: "Cyber Vibes", duration: "3:58", image: imgTrack5, audioUrl: AUDIO_URL },
-  { id: "rp6", title: "Red Planet", artist: "@martian", album: "Space Journey", duration: "5:30", image: imgTrack6, audioUrl: AUDIO_URL },
-  { id: "rp7", title: "AI Symphony", artist: "@synthmaster", album: "Electric Waves", duration: "4:42", image: imgTrack7, audioUrl: AUDIO_URL },
-  { id: "rp8", title: "Future Memories", artist: "@retrowave", album: "Time Travel", duration: "5:10", image: imgTrack8, audioUrl: AUDIO_URL },
-];
+import type { Playlist, Track } from "@/types";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { fetchRecentPlayHistory } from "@/services/supabaseService";
+import { MOCK_TRACK_CATALOG } from "@/data/mock";
 
 // ── Playlist Card ──
 interface PlaylistCardProps {
@@ -99,7 +62,26 @@ interface PlaylistsPageProps {
 
 export function PlaylistsPage({ onPlaylistClick }: PlaylistsPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [recentTracks, setRecentTracks] = useState<Track[]>(
+    isSupabaseConfigured ? [] : MOCK_TRACK_CATALOG
+  );
   const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
+  const { playlists, createPlaylist, user, isAuthenticated } = useAppData();
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !isAuthenticated || !user.id) return;
+
+    let mounted = true;
+    void fetchRecentPlayHistory(user.id)
+      .then((tracks) => {
+        if (mounted) setRecentTracks(tracks);
+      })
+      .catch((err) => console.error("Failed to load recent play history:", err));
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, user.id]);
 
   return (
     <div className="w-full">
@@ -178,10 +160,15 @@ export function PlaylistsPage({ onPlaylistClick }: PlaylistsPageProps) {
           </h2>
 
           <div className="overflow-x-auto">
+            {recentTracks.length === 0 ? (
+              <p className="text-[#a19a9b] text-sm py-4">
+                Nenhuma música tocada recentemente. Explore o catálogo e comece a ouvir.
+              </p>
+            ) : (
             <table className="w-full">
               <TrackTableHeader showAlbum={false} showDuration={false} />
               <tbody>
-                {recentlyPlayed.map((track, index) => {
+                {recentTracks.map((track, index) => {
                   const isCurrentTrack = currentTrack?.id === track.id;
                   const isTrackPlaying = isCurrentTrack && isPlaying;
 
@@ -199,6 +186,7 @@ export function PlaylistsPage({ onPlaylistClick }: PlaylistsPageProps) {
                 })}
               </tbody>
             </table>
+            )}
           </div>
         </section>
       </div>
@@ -207,9 +195,10 @@ export function PlaylistsPage({ onPlaylistClick }: PlaylistsPageProps) {
       <CreatePlaylistModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onCreate={(data) => {
-          console.log("Create playlist:", data);
+        onCreate={async (data) => {
+          const created = await createPlaylist(data);
           setModalOpen(false);
+          onPlaylistClick(created);
         }}
       />
     </div>

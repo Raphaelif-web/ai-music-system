@@ -1,6 +1,5 @@
 import { useMusicPlayer } from "../../context/MusicContext";
-import { Track } from "../../context/MusicContext";
-import { useState } from "react";
+import type { Track } from "@/types";
 import { FavoriteButton } from "./FavoriteButton";
 
 interface MusicCardProps {
@@ -16,16 +15,18 @@ export function MusicCard({
   showFavorite = true,
   className = "",
 }: MusicCardProps) {
-  const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { playTrack, currentTrack, isPlaying, isTrackFavorite, toggleFavorite } =
+    useMusicPlayer();
+  const isFavorite = isTrackFavorite(track.id);
   const isCurrentTrack = currentTrack?.id === track.id;
 
   const handleClick = () => {
     playTrack(track);
   };
 
-  const handleFavoriteToggle = () => {
-    setIsFavorite(!isFavorite);
+  const handleFavoriteToggle = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    toggleFavorite(track.id);
   };
 
   if (variant === "list") {

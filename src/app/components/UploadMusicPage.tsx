@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { useAppData } from "@/context/AppDataContext";
+import imgDefaultCover from "@/assets/figma/48a6e9ae994c060da347e19294ad8e9f9fa5358c.png";
 import svgPaths from "../../imports/svg-r7seo7qk5p";
 
 const CATEGORIES = [
@@ -31,6 +33,8 @@ function FieldError({ message }: { message: string }) {
 }
 
 export function UploadMusicPage({ onCancel }: UploadMusicPageProps) {
+  const { uploadTrack, user } = useAppData();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Audio upload
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
@@ -133,14 +137,29 @@ export function UploadMusicPage({ onCancel }: UploadMusicPageProps) {
     return newErrors;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
     const newErrors = validate();
     setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-    // In a real app, submit form data
-    alert("Música carregada com sucesso!");
-    onCancel?.();
+    if (Object.keys(newErrors).length > 0 || !audioFile) return;
+
+    setIsSubmitting(true);
+    try {
+      await uploadTrack({
+        title: title.trim(),
+        audioFile,
+        coverFile: coverFile,
+        category: category || undefined,
+        tags,
+        aiGenerator: aiGenerator || undefined,
+        prompt: prompt || undefined,
+      });
+      onCancel?.();
+    } catch {
+      // toast handled in context/service
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const hasError = (field: "audio" | "title" | "agreed") => submitted && !!errors[field];
@@ -583,14 +602,15 @@ export function UploadMusicPage({ onCancel }: UploadMusicPageProps) {
                     Cancelar
                   </button>
                   <button
-                    onClick={handleSubmit}
-                    className="px-4 py-2 font-semibold text-[16px] leading-[1.5] transition-opacity hover:opacity-90 min-h-[44px]"
+                    onClick={() => void handleSubmit()}
+                    disabled={isSubmitting}
+                    className="px-4 py-2 font-semibold text-[16px] leading-[1.5] transition-opacity hover:opacity-90 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       background: "linear-gradient(90deg, #ff164c 57.214%, #ea5858)",
                       color: "#f8f8f8",
                     }}
                   >
-                    Salvar alterações
+                    {isSubmitting ? "Publicando..." : "Salvar alterações"}
                   </button>
                 </div>
               </div>

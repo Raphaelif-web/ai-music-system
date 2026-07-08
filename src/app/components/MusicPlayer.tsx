@@ -71,7 +71,28 @@ function VolumeMutedIcon() {
 }
 
 export function MusicPlayer() {
-  const { currentTrack, isPlaying, togglePlay, isFavorite, toggleFavorite, progress, setProgress, volume, setVolume, isMuted, toggleMute, audioRef, playNext, playPrevious } = useMusicPlayer();
+  const {
+    currentTrack,
+    isPlaying,
+    togglePlay,
+    isTrackFavorite,
+    toggleFavorite,
+    progress,
+    setProgress,
+    volume,
+    setVolume,
+    isMuted,
+    toggleMute,
+    audioRef,
+    playNext,
+    playPrevious,
+    shuffleEnabled,
+    repeatMode,
+    toggleShuffle,
+    toggleRepeat,
+  } = useMusicPlayer();
+
+  const trackIsFavorite = currentTrack ? isTrackFavorite(currentTrack.id) : false;
 
   const formatTime = (pct: number, duration: number = 392) => {
     const currentSec = Math.round((pct / 100) * duration);
@@ -124,8 +145,8 @@ export function MusicPlayer() {
           </p>
         </div>
         <FavoriteButton
-          isFavorite={isFavorite}
-          onToggle={toggleFavorite}
+          isFavorite={trackIsFavorite}
+          onToggle={() => currentTrack && toggleFavorite(currentTrack.id)}
         />
       </div>
 
@@ -134,8 +155,11 @@ export function MusicPlayer() {
         {/* Buttons */}
         <div className="flex items-center gap-7">
           <button
+            onClick={toggleShuffle}
             className="cursor-pointer transition-colors duration-150 w-[34px] h-[34px] flex items-center justify-center"
-            style={{ color: "#a19a9b" }}
+            style={{ color: shuffleEnabled ? "#ff164c" : "#a19a9b" }}
+            aria-label="Aleatório"
+            aria-pressed={shuffleEnabled}
           >
             <ShuffleIcon />
           </button>
@@ -167,10 +191,16 @@ export function MusicPlayer() {
           </button>
 
           <button
-            className="cursor-pointer transition-colors duration-150 w-[34px] h-[34px] flex items-center justify-center"
-            style={{ color: "#a19a9b" }}
+            onClick={toggleRepeat}
+            className="relative cursor-pointer transition-colors duration-150 w-[34px] h-[34px] flex items-center justify-center"
+            style={{ color: repeatMode !== "off" ? "#ff164c" : "#a19a9b" }}
+            aria-label={repeatMode === "one" ? "Repetir uma" : "Repetir"}
+            aria-pressed={repeatMode !== "off"}
           >
             <RepeatIcon />
+            {repeatMode === "one" && (
+              <span className="absolute text-[9px] font-bold" style={{ color: "#ff164c" }}>1</span>
+            )}
           </button>
         </div>
 

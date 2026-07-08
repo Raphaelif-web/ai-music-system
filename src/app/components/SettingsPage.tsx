@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Switch } from "./ui/switch";
 import { CategoryChip } from "./ui/CategoryChip";
 import { Button } from "./ui/button";
+import { useAppData } from "@/context/AppDataContext";
 
 // ─── Sub-components ─────────────────────────────────────────────────
 
@@ -104,15 +105,27 @@ const MOODS = [
 ];
 
 function ProfileTab() {
-  const [publicProfile, setPublicProfile] = useState(true);
-  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(
-    new Set(["Gospel", "Jazz", "Country", "Eletronic"])
-  );
-  const [selectedMoods, setSelectedMoods] = useState<Set<string>>(
-    new Set(["Inspirador", "Romântico"])
-  );
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { user, updateProfile } = useAppData();
+  const [publicProfile, setPublicProfile] = useState(user.isPublic);
+  const [name, setName] = useState(user.name);
+  const [username, setUsername] = useState(user.username);
+  const [bio, setBio] = useState(user.bio ?? "");
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set(user.favoriteGenres));
+  const [selectedMoods, setSelectedMoods] = useState<Set<string>>(new Set(user.favoriteMoods));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const saveProfile = () => {
+    updateProfile({
+      name: name.trim(),
+      username: username.trim(),
+      bio: bio.trim(),
+      isPublic: publicProfile,
+      favoriteGenres: [...selectedGenres],
+      favoriteMoods: [...selectedMoods],
+      avatar: avatarUrl ?? user.avatar,
+    });
+  };
 
   function toggleGenre(g: string) {
     setSelectedGenres((prev) => {
@@ -196,23 +209,17 @@ function ProfileTab() {
           <div className="flex flex-col gap-4 flex-1 w-full min-w-0">
             {/* Row: Nome + @username */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <SettingsInput placeholder="Nome do usuário" />
-              <SettingsInput placeholder="@username" />
+              <SettingsInput placeholder="Nome do usuário" value={name} onChange={setName} />
+              <SettingsInput placeholder="@username" value={username} onChange={setUsername} />
             </div>
-            {/* Bio textarea */}
-            <div
-              className="relative w-full"
-              style={{ border: "1px solid #30292b" }}
-            >
+            <div className="relative w-full" style={{ border: "1px solid #30292b" }}>
               <textarea
                 placeholder="Uma frase para representar seu perfil."
                 rows={3}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
                 className="w-full bg-transparent outline-none resize-none px-6 py-2 placeholder-white/20"
-                style={{
-                  color: "#f8f8f8",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                }}
+                style={{ color: "#f8f8f8", fontSize: "14px", fontWeight: 600 }}
               />
             </div>
           </div>
@@ -237,10 +244,7 @@ function ProfileTab() {
               Outros usuários poderão ver seu perfil e encontrar nas buscas
             </p>
           </div>
-          <Button
-            variant="primary"
-            onClick={() => {}}
-          >
+          <Button variant="primary" onClick={saveProfile}>
             Salvar alterações
           </Button>
         </div>
@@ -303,18 +307,7 @@ function ProfileTab() {
           className="flex justify-end pt-2"
           style={{ borderTop: "1px solid #30292b" }}
         >
-          <Button
-            type="button"
-            onClick={() => {}}
-            className="flex items-center justify-center px-4 py-2 cursor-pointer transition-opacity duration-150 hover:opacity-90 whitespace-nowrap shrink-0"
-            style={{
-              background: "linear-gradient(to right, #ff164c 57%, #ea5858 100%)",
-              color: "#f8f8f8",
-              fontSize: "14px",
-              fontWeight: 600,
-              height: "44px",
-            }}
-          >
+          <Button type="button" onClick={saveProfile} className="flex items-center justify-center px-4 py-2 cursor-pointer transition-opacity duration-150 hover:opacity-90 whitespace-nowrap shrink-0" style={{ background: "linear-gradient(to right, #ff164c 57%, #ea5858 100%)", color: "#f8f8f8", fontSize: "14px", fontWeight: 600, height: "44px" }}>
             Salvar alterações
           </Button>
         </div>
@@ -326,7 +319,17 @@ function ProfileTab() {
 // ─── Account Tab ─────────────────────────────────────────────────────
 
 function AccountTab({ onLogout }: { onLogout?: () => void }) {
+  const { user, updateAccount, deleteAccount } = useAppData();
+  const [email, setEmail] = useState(user.email);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleSaveAccount = () => {
+    updateAccount({ email, password: newPassword || undefined, confirmPassword: confirmPassword || undefined });
+    setNewPassword("");
+    setConfirmPassword("");
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -343,26 +346,15 @@ function AccountTab({ onLogout }: { onLogout?: () => void }) {
 
         {/* Email + current password row */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <SettingsInput
-            placeholder="E-mail"
-            type="email"
-            defaultValue="lucas@gmail.com"
-          />
-          <SettingsInput
-            placeholder="Senha atual"
-            type="password"
-            defaultValue="12345678"
-          />
+          <SettingsInput placeholder="E-mail" type="email" value={email} onChange={setEmail} />
+          <SettingsInput placeholder="Senha atual" type="password" />
         </div>
 
         {/* New password row + save */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-stretch">
-          <SettingsInput placeholder="Nova senha" type="password" />
-          <SettingsInput placeholder="Confirmar nova senha" type="password" />
-          <Button
-            variant="primary"
-            onClick={() => {}}
-          >
+          <SettingsInput placeholder="Nova senha" type="password" value={newPassword} onChange={setNewPassword} />
+          <SettingsInput placeholder="Confirmar nova senha" type="password" value={confirmPassword} onChange={setConfirmPassword} />
+          <Button variant="primary" onClick={handleSaveAccount}>
             Salvar alterações
           </Button>
         </div>
@@ -473,6 +465,11 @@ function AccountTab({ onLogout }: { onLogout?: () => void }) {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  deleteAccount();
+                  setShowDeleteConfirm(false);
+                  onLogout?.();
+                }}
                 className="px-4 py-2 cursor-pointer"
                 style={{
                   background:

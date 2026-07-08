@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { MusicCarousel } from "./MusicCarousel";
-import { useMusicPlayer, Track } from "../context/MusicContext";
-import svgPaths from "../../imports/svg-67owiawy17";
+import { useEffect, useState } from "react";
+import { useMusicPlayer } from "../context/MusicContext";
+import type { Track } from "@/types";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { fetchHomePageData, type HomeCreator } from "@/services/supabaseService";
 
 // ── Unsplash creator images ──
 const IMG_CREATOR_0 = "https://images.unsplash.com/photo-1650765814813-ec91a21dec80?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400";
@@ -31,7 +32,7 @@ const IMG_GEAR = "https://images.unsplash.com/photo-1494430700620-683982a84a30?c
 const IMG_WAVES = "https://images.unsplash.com/photo-1723250262102-19ab713c05b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400";
 const IMG_RADIO = "https://images.unsplash.com/photo-1772812474654-a94307e5df20?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400";
 
-// ── Data ──────────────────────────────────────────────────
+// ── Data (fallback when Supabase has no content) ──────────
 
 interface Creator {
   id: string;
@@ -41,7 +42,7 @@ interface Creator {
   overlayImage?: string;
 }
 
-const creators: Creator[] = [
+const FALLBACK_CREATORS: Creator[] = [
   { id: "c0", name: "Bob brown",    handle: "@bobbrown",    bgImage: IMG_CREATOR_0 },
   { id: "c1", name: "Robert Green", handle: "@robertgreen", bgImage: IMG_CREATOR_1 },
   { id: "c2", name: "Mark Smith",   handle: "@marksmith",   bgImage: IMG_CREATOR_2 },
@@ -55,7 +56,7 @@ const creators: Creator[] = [
 // Free music URLs - Using the provided Framer URL for all tracks
 const AUDIO_URL = "https://framerusercontent.com/assets/09hPgrhAGuCOXh9suukXzyi8k.mp3";
 
-const tracksEmAlta: Track[] = [
+const FALLBACK_TRACKS_EM_ALTA: Track[] = [
   { id: "t1",  title: "Synthwave Dreams",          artist: "@SynthMasterAI",  image: IMG_SYNTH, audioUrl: AUDIO_URL },
   { id: "t2",  title: "AI Serenade",               artist: "@MelodyMaker",    image: IMG_DJ, audioUrl: AUDIO_URL },
   { id: "t3",  title: "Whispers of the Future",    artist: "@FutureSound",    image: IMG_WAVES, audioUrl: AUDIO_URL },
@@ -72,7 +73,7 @@ const tracksEmAlta: Track[] = [
   { id: "t14", title: "Synth Paradise",            artist: "@SynthLover",     image: IMG_CASSETTE, audioUrl: AUDIO_URL },
 ];
 
-const tracksRecentes: Track[] = [
+const FALLBACK_TRACKS_RECENTES: Track[] = [
   { id: "r1", title: "Vinyl Soul",                 artist: "@RetroVibes",     image: IMG_VINYL, audioUrl: AUDIO_URL },
   { id: "r2", title: "Live Crowd Energy",          artist: "@MelodyMaker",    image: IMG_FESTIVAL, audioUrl: AUDIO_URL },
   { id: "r3", title: "Guitar Dreams",              artist: "@StringMaster",   image: IMG_GUITAR, audioUrl: AUDIO_URL },
@@ -89,7 +90,7 @@ const tracksRecentes: Track[] = [
   { id: "r14", title: "Neon Pulse",                artist: "@CyberSound",     image: IMG_CONCERT, audioUrl: AUDIO_URL },
 ];
 
-const tracksDestaques: Track[] = [
+const FALLBACK_TRACKS_DESTAQUES: Track[] = [
   { id: "d1", title: "Future Whispers 2",       artist: "@bobbrown",       image: IMG_NEON_STAGE, audioUrl: AUDIO_URL },
   { id: "d2", title: "Vintage Nights",          artist: "@robertgreen",    image: IMG_STUDIO, audioUrl: AUDIO_URL },
   { id: "d3", title: "AI Echo Dreams",          artist: "@marksmith",      image: IMG_FESTIVAL, audioUrl: AUDIO_URL },
@@ -173,7 +174,15 @@ function CreatorCard({ creator }: { creator: Creator }) {
   );
 }
 
-function MusicCard({ track, size = "normal" }: { track: Track; size?: "normal" | "large" }) {
+function MusicCard({
+  track,
+  size = "normal",
+  queue,
+}: {
+  track: Track;
+  size?: "normal" | "large";
+  queue: Track[];
+}) {
   const [hovered, setHovered] = useState(false);
   const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
 
@@ -190,8 +199,7 @@ function MusicCard({ track, size = "normal" }: { track: Track; size?: "normal" |
           image: track.image,
           audioUrl: track.audioUrl,
         },
-        // Pass the relevant track list as the queue
-        size === "large" ? tracksDestaques : tracksEmAlta
+        queue
       );
     }
   };
@@ -298,11 +306,41 @@ function SectionHeader({ title }: { title: string }) {
 // ── Main HomePage ─────────────────────────────────────────
 
 export function HomePage() {
-  const [activeSection, setActiveSection] = useState<"all" | "ai" | "human">("all");
+  const useFallback = !isSupabaseConfigured;
+  const [creators, setCreators] = useState<Creator[]>(useFallback ? FALLBACK_CREATORS : []);
+  const [tracksEmAlta, setTracksEmAlta] = useState<Track[]>(useFallback ? FALLBACK_TRACKS_EM_ALTA : []);
+  const [tracksRecentes, setTracksRecentes] = useState<Track[]>(useFallback ? FALLBACK_TRACKS_RECENTES : []);
+  const [tracksDestaques, setTracksDestaques] = useState<Track[]>(useFallback ? FALLBACK_TRACKS_DESTAQUES : []);
+  const [isLoading, setIsLoading] = useState(isSupabaseConfigured);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let mounted = true;
+    void fetchHomePageData()
+      .then((data) => {
+        if (!mounted) return;
+        setCreators(data.creators as HomeCreator[]);
+        setTracksEmAlta(data.trending);
+        setTracksRecentes(data.recent);
+        setTracksDestaques(data.weeklyHighlights);
+      })
+      .catch((err) => console.error("Failed to load home data:", err))
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="flex-1 w-full overflow-y-auto scrollbar-hide">
       <div className="w-full px-4 sm:px-6 lg:px-[37px] py-6 lg:py-[38px] space-y-8 lg:space-y-[38px]">
+        {isLoading && (
+          <p className="text-[#a19a9b] text-sm">Carregando conteúdo...</p>
+        )}
         {/* Top criadores section */}
         <section>
           <h2 className="text-lg sm:text-xl lg:text-[24px] font-semibold text-white mb-4 lg:mb-[16px]">
@@ -325,7 +363,7 @@ export function HomePage() {
           <div className="overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 lg:mx-0">
             <div className="flex gap-4 lg:gap-[16px] px-4 sm:px-6 lg:px-0">
               {tracksEmAlta.map((t) => (
-                <MusicCard key={t.id} track={t} />
+                <MusicCard key={t.id} track={t} queue={tracksEmAlta} />
               ))}
             </div>
           </div>
@@ -339,7 +377,7 @@ export function HomePage() {
           <div className="overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 lg:mx-0">
             <div className="flex gap-4 lg:gap-[16px] px-4 sm:px-6 lg:px-0">
               {tracksRecentes.map((t) => (
-                <MusicCard key={t.id} track={t} />
+                <MusicCard key={t.id} track={t} queue={tracksRecentes} />
               ))}
             </div>
           </div>
@@ -353,7 +391,7 @@ export function HomePage() {
           <div className="overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 lg:mx-0">
             <div className="flex gap-4 lg:gap-[16px] px-4 sm:px-6 lg:px-0">
               {tracksDestaques.map((t) => (
-                <MusicCard key={t.id} track={t} size="large" />
+                <MusicCard key={t.id} track={t} size="large" queue={tracksDestaques} />
               ))}
             </div>
           </div>

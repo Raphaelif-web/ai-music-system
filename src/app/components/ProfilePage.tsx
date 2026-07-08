@@ -1,7 +1,9 @@
-import { useState, useRef } from "react";
-import { useMusicPlayer, Track } from "../context/MusicContext";
+import { useState, useRef, useMemo } from "react";
+import { useMusicPlayer } from "../context/MusicContext";
+import { useAppData } from "@/context/AppDataContext";
 import { TrackRow, TrackTableHeader } from "./ui/TrackRow";
 import { Button } from "./ui/button";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,42 +14,12 @@ import { Upload, ImageIcon } from "lucide-react";
 
 // ── Figma Assets ──
 import imgBanner from "@/assets/figma/1ff0fd371e6317f8995f6626691775855756bce5.png";
-import imgProfilePhoto from "@/assets/figma/2b9669d4caae7e0131df172e452df996b054e84b.png";
 import imgTrack1 from "@/assets/figma/48a6e9ae994c060da347e19294ad8e9f9fa5358c.png";
-import imgTrack2 from "@/assets/figma/51e24026833e73d23a99e5a06db5cc02e7cd5bf4.png";
-import imgTrack3 from "@/assets/figma/b6fa0d201f9ec64c5f0a983eee403861c850233c.png";
 
-const AUDIO_URL = "https://framerusercontent.com/assets/09hPgrhAGuCOXh9suukXzyi8k.mp3";
-
-const publishedTracks: Track[] = [
-  {
-    id: "p1",
-    title: "Bob brown",
-    artist: "@bobbrown",
-    album: "Bob brown",
-    duration: "5:47",
-    image: imgTrack1,
-    audioUrl: AUDIO_URL,
-  },
-  {
-    id: "p2",
-    title: "Marte de boa",
-    artist: "@lucasmarteux",
-    album: "Marte ataca",
-    duration: "6:36",
-    image: imgTrack2,
-    audioUrl: AUDIO_URL,
-  },
-  {
-    id: "p3",
-    title: "Amo muito...",
-    artist: "@thalesroberto",
-    album: "Marte de boa",
-    duration: "5:22",
-    image: imgTrack3,
-    audioUrl: AUDIO_URL,
-  },
-];
+function formatFollowers(count: number) {
+  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+  return String(count);
+}
 
 // ── Share Icon SVG ──
 function ShareIcon() {
@@ -76,10 +48,14 @@ function DotsVerticalIcon() {
 interface ProfilePageProps {
   isPublic?: boolean;
   onEditProfile?: () => void;
+  onViewPublic?: () => void;
 }
 
-export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProps) {
+export function ProfilePage({ isPublic = false, onEditProfile, onViewPublic }: ProfilePageProps) {
   const { playTrack, currentTrack, isPlaying } = useMusicPlayer();
+  const { user, getUserTracks } = useAppData();
+  const publishedTracks = useMemo(() => getUserTracks(), [getUserTracks]);
+  const totalDurationMin = Math.max(publishedTracks.length * 5, publishedTracks.length > 0 ? 5 : 0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [bannerImage, setBannerImage] = useState(imgBanner);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,7 +150,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                 style={{ width: "140px", height: "140px" }}
               >
                 <img
-                  src={imgProfilePhoto}
+                  src={user.avatar ?? imgTrack1}
                   alt="Profile"
                   className="w-full h-full object-cover border-4 border-[#0a0608]"
                 />
@@ -187,13 +163,10 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                     className="font-bold leading-[1.5]"
                     style={{ fontSize: "clamp(20px, 4vw, 40px)", color: "#ebe9e9" }}
                   >
-                    Lucas Martins
+                    {user.name}
                   </h1>
-                  <p
-                    className="font-semibold leading-[1.5]"
-                    style={{ fontSize: "16px", color: "#bababa" }}
-                  >
-                    @lucasmarteux
+                  <p className="font-semibold leading-[1.5]" style={{ fontSize: "16px", color: "#bababa" }}>
+                    @{user.username}
                   </p>
                 </div>
 
@@ -204,7 +177,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                       className="font-bold"
                       style={{ fontSize: "16px", color: "#f8f8f8" }}
                     >
-                      36.9k
+                      {formatFollowers(user.followers)}
                     </span>
                     <span style={{ fontSize: "14px", color: "#a19a9b" }}>
                       seguidores
@@ -215,7 +188,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                       className="font-bold"
                       style={{ fontSize: "16px", color: "#f8f8f8" }}
                     >
-                      150
+                      {user.following}
                     </span>
                     <span style={{ fontSize: "14px", color: "#a19a9b" }}>
                       seguindo
@@ -225,7 +198,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
 
                 {/* Bio */}
                 <p className="text-[12px] leading-[1.25] max-w-md" style={{ color: "#bababa" }}>
-                  Gosto de músicas eletrônicas, clássica e jazz.
+                  {user.bio ?? "Sem bio ainda."}
                 </p>
               </div>
             </div>
@@ -248,13 +221,16 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                   {isFollowing ? "Seguindo" : "Seguir perfil"}
                 </button>
               ) : (
-                /* PERSONAL: Editar perfil */
-                <Button
-                  variant="primary"
-                  onClick={onEditProfile}
-                >
-                  Editar perfil
-                </Button>
+                <>
+                  <Button variant="primary" onClick={onEditProfile}>
+                    Editar perfil
+                  </Button>
+                  {onViewPublic && (
+                    <Button variant="outline" onClick={onViewPublic}>
+                      Ver perfil público
+                    </Button>
+                  )}
+                </>
               )}
 
               {/* Share button */}
@@ -262,6 +238,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
                 className="relative flex items-center justify-center p-3 cursor-pointer transition-opacity duration-150 hover:opacity-80"
                 aria-label="Compartilhar"
                 style={{ color: "#f8f8f8" }}
+                onClick={() => toast.success("Link do perfil copiado (mock).")}
               >
                 <div
                   className="absolute inset-0 pointer-events-none"
@@ -288,7 +265,7 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
             Músicas publicadas
           </h2>
           <p style={{ fontSize: "12px", color: "#bababa" }}>
-            {publishedTracks.length} músicas · 27 min
+            {publishedTracks.length} músicas · {totalDurationMin} min
           </p>
         </div>
 
@@ -297,21 +274,28 @@ export function ProfilePage({ isPublic = false, onEditProfile }: ProfilePageProp
           <table className="w-full">
             <TrackTableHeader showFavorites={false} />
             <tbody>
-              {publishedTracks.map((track, index) => {
-                const isCurrentTrack = currentTrack?.id === track.id;
-                const isTrackPlaying = isCurrentTrack && isPlaying;
-
-                return (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    index={index}
-                    isPlaying={isTrackPlaying}
-                    onClick={() => playTrack(track)}
-                    showFavorites={false}
-                  />
-                );
-              })}
+              {publishedTracks.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center" style={{ color: "#a19a9b" }}>
+                    Nenhuma música publicada ainda. Carregue sua primeira criação!
+                  </td>
+                </tr>
+              ) : (
+                publishedTracks.map((track, index) => {
+                  const isCurrentTrack = currentTrack?.id === track.id;
+                  const isTrackPlaying = isCurrentTrack && isPlaying;
+                  return (
+                    <TrackRow
+                      key={track.id}
+                      track={track}
+                      index={index}
+                      isPlaying={isTrackPlaying}
+                      onClick={() => playTrack(track, publishedTracks)}
+                      showFavorites={false}
+                    />
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

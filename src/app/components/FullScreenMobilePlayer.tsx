@@ -67,16 +67,22 @@ export function FullScreenMobilePlayer() {
     togglePlay,
     progress,
     setProgress,
-    isFavorite,
+    isTrackFavorite,
     toggleFavorite,
     isFullscreenOpen,
     closeFullscreen,
     audioRef,
     playNext,
     playPrevious,
+    shuffleEnabled,
+    repeatMode,
+    toggleShuffle,
+    toggleRepeat,
   } = useMusicPlayer();
 
   if (!isFullscreenOpen || !currentTrack) return null;
+
+  const trackIsFavorite = isTrackFavorite(currentTrack.id);
 
   const displayImage = currentTrack?.image || imgPlayerMusic;
   const displayTitle = currentTrack?.title || "";
@@ -148,8 +154,8 @@ export function FullScreenMobilePlayer() {
           </div>
           <div className="shrink-0 pt-1">
             <FavoriteButton
-              isFavorite={isFavorite}
-              onToggle={toggleFavorite}
+              isFavorite={trackIsFavorite}
+              onToggle={() => toggleFavorite(currentTrack.id)}
               size="lg"
             />
           </div>
@@ -179,7 +185,12 @@ export function FullScreenMobilePlayer() {
       <div className="px-6 pb-8">
         <div className="flex items-center justify-between mb-8">
           {/* Shuffle */}
-          <button className="w-8 h-8 flex items-center justify-center text-[#a19a9b]">
+          <button
+            onClick={toggleShuffle}
+            className="w-8 h-8 flex items-center justify-center"
+            style={{ color: shuffleEnabled ? "#ff164c" : "#a19a9b" }}
+            aria-label="Aleatório"
+          >
             <ShuffleIcon />
           </button>
 
@@ -209,8 +220,16 @@ export function FullScreenMobilePlayer() {
           </button>
 
           {/* Repeat */}
-          <button className="w-8 h-8 flex items-center justify-center text-[#a19a9b]">
+          <button
+            onClick={toggleRepeat}
+            className="relative w-8 h-8 flex items-center justify-center"
+            style={{ color: repeatMode !== "off" ? "#ff164c" : "#a19a9b" }}
+            aria-label="Repetir"
+          >
             <RepeatIcon />
+            {repeatMode === "one" && (
+              <span className="absolute text-[8px] font-bold" style={{ color: "#ff164c" }}>1</span>
+            )}
           </button>
         </div>
       </div>

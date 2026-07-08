@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Track } from "../../context/MusicContext";
+import type { Track } from "@/types";
+import { useMusicPlayer } from "../../context/MusicContext";
 import { FavoriteButton } from "./FavoriteButton";
 
 // ── Equalizer animation bars ──
@@ -42,7 +43,8 @@ export function TrackRow({
   showDuration = true,
   showFavorites = true,
 }: TrackRowProps) {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const { isTrackFavorite, toggleFavorite } = useMusicPlayer();
+  const isFavorite = isTrackFavorite(track.id);
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -129,9 +131,7 @@ export function TrackRow({
           <div className="flex items-center justify-center">
             <FavoriteButton
               isFavorite={isFavorite}
-              onToggle={() => {
-                setIsFavorite(!isFavorite);
-              }}
+              onToggle={() => toggleFavorite(track.id)}
               size="sm"
             />
           </div>
